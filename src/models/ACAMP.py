@@ -12,7 +12,7 @@ from scipy.stats import norm
 from scipy.stats import entropy
 
 
-class StatThresholdConfig(DetectorConfig):
+class ACAMPConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -24,9 +24,9 @@ class StatThresholdConfig(DetectorConfig):
         self.minimal_compare_distance = minimal_compare_distance
         super().__init__(**kwargs)
 
-class StatThreshold(DetectorBase):
+class ACAMP(DetectorBase):
 
-    config_class = StatThresholdConfig
+    config_class = ACAMPConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -40,7 +40,7 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return True
 
-    def __init__(self,  config: StatThresholdConfig):
+    def __init__(self,  config: ACAMPConfig):
 
         super().__init__(config)
 

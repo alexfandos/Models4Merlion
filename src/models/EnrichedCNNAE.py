@@ -17,7 +17,7 @@ import torch
 
 
 
-class StatThresholdConfig(DetectorConfig):
+class EnrichedCNNAEConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -28,9 +28,9 @@ class StatThresholdConfig(DetectorConfig):
         self.f = window_size_f
         super().__init__(**kwargs)
 
-class StatThreshold(DetectorBase):
+class EnrichedCNNAE(DetectorBase):
 
-    config_class = StatThresholdConfig
+    config_class = EnrichedCNNAEConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -44,8 +44,8 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return True
 
-    def __init__(self, config: StatThresholdConfig):
-        self.model = EnrichedCNNAE(b = config.b, f = config.f)
+    def __init__(self, config: EnrichedCNNAEConfig):
+        self.model = EnrichedCNNAEModel(b = config.b, f = config.f)
         super().__init__(config)
 
 
@@ -60,7 +60,7 @@ class StatThreshold(DetectorBase):
         return self.model.test(time_series)
 
 
-class EnrichedCNNAE():
+class EnrichedCNNAEModel():
     def __init__(self, b, f):
         if b % 2 != 0:
             b = b + 1

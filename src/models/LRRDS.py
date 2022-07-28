@@ -12,7 +12,7 @@ import math
 from sklearn.cluster import KMeans
 
 
-class StatThresholdConfig(DetectorConfig):
+class LRRDSConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -22,9 +22,9 @@ class StatThresholdConfig(DetectorConfig):
 
         super().__init__(**kwargs)
 
-class StatThreshold(DetectorBase):
+class LRRDS(DetectorBase):
 
-    config_class = StatThresholdConfig
+    config_class = LRRDSConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -38,23 +38,23 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return False
 
-    def __init__(self, config: StatThresholdConfig):
+    def __init__(self, config: LRRDSConfig):
 
         super().__init__(config)
 
 
 
     def _train(self, train_data: pd.DataFrame, train_config=None) -> pd.DataFrame:
-        lrrds = LRRDS()
+        lrrds = LRRDSModel()
         return lrrds.process(train_data, 10)
 
         
 
     def _get_anomaly_score(self, time_series: pd.DataFrame, time_series_prev: pd.DataFrame = None) -> pd.DataFrame:
-        lrrds = LRRDS()
+        lrrds = LRRDSModel()
         return lrrds.process(time_series, 10)
 
-class LRRDS():
+class LRRDSModel():
 
     def process(self, dataset, compresion_factor = 10):
         normalizedData = self.normalize(dataset)

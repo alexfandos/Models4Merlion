@@ -13,7 +13,7 @@ import numpy as np
 import math
 
 
-class StatThresholdConfig(DetectorConfig):
+class GMMConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -27,9 +27,9 @@ class StatThresholdConfig(DetectorConfig):
 
         super().__init__(**kwargs)
 
-class StatThreshold(DetectorBase):
+class GMM(DetectorBase):
 
-    config_class = StatThresholdConfig
+    config_class = GMMConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -43,7 +43,7 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return True
 
-    def __init__(self, config: StatThresholdConfig):
+    def __init__(self, config: GMMConfig):
 
         super().__init__(config)
 
@@ -143,70 +143,4 @@ class StatThreshold(DetectorBase):
         else:
             return train_data
         
-
-
-class SlidingWindowARIMA():
-
-    def process(self, dataset: pd.DataFrame, window_size = 500, step = 50):
-        anomalyScores = np.zeros((len(dataset),1))
-
-        for i in range(0, len(dataset) - window_size, step):
-            print(i, "/", len(dataset) - window_size)
-            sliding_window_data = dataset.iloc[i: i + window_size]
-            D = self.obtainD(sliding_window_data)
-            P, Q, trainedModel = self.obtainPandQ(sliding_window_data, D)
-            timestamp = dataset.iloc[i+window_size+1:i+window_size+1+step].index
-
-            pred, _ = trainedModel.forecast(time_stamps = timestamp)
-
-            anomalyScores[i+window_size+1 : i+window_size+1+step] = pred.to_pd().to_numpy()
-
-        df = pd.DataFrame(index = dataset.index)
-        df["anomalyScore"] = anomalyScores
-        return df
-
-
-
-    def obtainD(self, dataset: pd.DataFrame):
-        differentiated_sliding_window_data = dataset.copy(deep = True)
-        D = 1
-        differentiate = DifferenceTransform()
-
-        dswd = TimeSeries.from_pd(differentiated_sliding_window_data)
-
-        differentiate.train(dswd)
-        if (len(dswd) < 100):
-            a = 1
-        dswd = differentiate(dswd)
-        while adfuller(dswd.to_pd().to_numpy())[1] > 0.05:
-            if (len(dswd) < 100):
-                a = 1
-            D = D + 1
-            dswd = differentiate(dswd)
-        return D
-
-    def obtainPandQ(self, dataset: pd.DataFrame, D, Pmax = 2, Qmax = 2):
-        dataset = TimeSeries.from_pd(dataset)
-        minAICvalue = None
-        minP = None
-        minQ = None
-        minModel = None
-        for p in range(Pmax):
-            for q in range(Qmax):
-                model = Arima(ArimaConfig(order=(p,D,q)))
-                _, train_err = model.train(train_data = dataset)
-                if (len(train_err.to_pd().to_numpy()) == 0):
-                    continue
-                AICValue = self.AIC(train_err.to_pd().to_numpy(), p + q + 1)
-                if minAICvalue == None or minAICvalue > AICValue:
-                    minAICvalue = AICValue
-                    minP = p
-                    minQ = q
-                    minModel = model
-        return minP, minQ, model
-
-    def AIC(self, error, K):
-        return len(error) * math.log(sum(np.square(error))/len(error)) + K
-
-
 

@@ -10,7 +10,7 @@ import torch
 import math
 
 
-class StatThresholdConfig(DetectorConfig):
+class DeepAnTConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -34,9 +34,9 @@ class StatThresholdConfig(DetectorConfig):
         self.windows_size = windows_size
 
 
-class StatThreshold(DetectorBase):
+class DeepAnT(DetectorBase):
     # The config class for StatThreshold is StatThresholdConfig, defined above
-    config_class = StatThresholdConfig
+    config_class = DeepAnTConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -50,7 +50,7 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return False
 
-    def __init__(self, config: StatThresholdConfig):
+    def __init__(self, config: DeepAnTConfig):
 
         super().__init__(config)
         self.model = None
@@ -74,7 +74,7 @@ class StatThreshold(DetectorBase):
         X, Y = self.data_pre_processing(train_data)
 
         # create model
-        self.model = DeepAnT(self.config.windows_size, self.dim)
+        self.model = DeepAnTModel(self.config.windows_size, self.dim)
         criterion = torch.nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(list(self.model.parameters()), lr=1e-5)
 
@@ -135,12 +135,12 @@ class StatThreshold(DetectorBase):
             return None, None, None
 
 
-class DeepAnT(torch.nn.Module):
+class DeepAnTModel(torch.nn.Module):
     """
         Model : Class for DeepAnT model
     """
     def __init__(self, LOOKBACK_SIZE, CHANNELS):
-        super(DeepAnT, self).__init__()
+        super(DeepAnTModel, self).__init__()
         self.conv1d_1_layer = torch.nn.Conv1d(in_channels=CHANNELS, out_channels=32, kernel_size=3)
         self.relu_1_layer = torch.nn.ReLU()
         self.maxpooling_1_layer = torch.nn.MaxPool1d(kernel_size=2)

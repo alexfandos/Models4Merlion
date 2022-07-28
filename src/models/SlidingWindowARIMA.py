@@ -16,7 +16,7 @@ import math
 from sklearn.cluster import KMeans
 
 
-class StatThresholdConfig(DetectorConfig):
+class SlidingWindowARIMAConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
@@ -26,9 +26,9 @@ class StatThresholdConfig(DetectorConfig):
 
         super().__init__(**kwargs)
 
-class StatThreshold(DetectorBase):
+class SlidingWindowARIMA(DetectorBase):
 
-    config_class = StatThresholdConfig
+    config_class = SlidingWindowARIMAConfig
 
     # By default, we would like to train the model's post-rule (i.e. the threshold
     # at which we fire an alert) to maximize F1 score
@@ -42,23 +42,23 @@ class StatThreshold(DetectorBase):
     def require_univariate(self) -> bool:
         return True
 
-    def __init__(self, config: StatThresholdConfig):
+    def __init__(self, config: SlidingWindowARIMAConfig):
 
         super().__init__(config)
 
 
 
     def _train(self, train_data: pd.DataFrame, train_config=None) -> pd.DataFrame:
-        lrrds = SlidingWindowARIMA()
+        lrrds = SlidingWindowARIMAModel()
         return lrrds.process(train_data)
 
         
 
     def _get_anomaly_score(self, time_series: pd.DataFrame, time_series_prev: pd.DataFrame = None) -> pd.DataFrame:
-        lrrds = SlidingWindowARIMA()
+        lrrds = SlidingWindowARIMAModel()
         return lrrds.process(time_series)
 
-class SlidingWindowARIMA():
+class SlidingWindowARIMAModel():
 
     def process(self, dataset: pd.DataFrame, window_size = 500, step = 50):
         anomalyScores = np.zeros((len(dataset),1))
