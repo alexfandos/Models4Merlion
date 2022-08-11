@@ -16,7 +16,7 @@ class LRRDSConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = None
 
     def __init__(self, **kwargs):
 
@@ -32,7 +32,7 @@ class LRRDS(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:
@@ -46,24 +46,30 @@ class LRRDS(DetectorBase):
 
     def _train(self, train_data: pd.DataFrame, train_config=None) -> pd.DataFrame:
         lrrds = LRRDSModel()
-        return lrrds.process(train_data, 10)
+        return lrrds.process(train_data)
 
         
 
     def _get_anomaly_score(self, time_series: pd.DataFrame, time_series_prev: pd.DataFrame = None) -> pd.DataFrame:
         lrrds = LRRDSModel()
-        return lrrds.process(time_series, 10)
+        return lrrds.process(time_series)
 
 class LRRDSModel():
 
-    def process(self, dataset, compresion_factor = 10):
+    def process(self, dataset, compresion_factor = 10, time_delay = 10, windows_size = 29, local_threshold = 0.12, threshold = 0.2):
         normalizedData = self.normalize(dataset)
         compressedData = self.compress(normalizedData, compresion_factor)
-        ps = self.phaseSpaceReconstruction(compressedData, 10)
+        ps = self.phaseSpaceReconstruction(compressedData, time_delay)
         score = 100000
         w = 2
-        _, _, rm = self.localRM(ps, 10)
-        for i in range(2, 10):
+        _, _, rm = self.localRM(ps, windows_size, local_threshold)
+
+        if windows_size < 6:
+            w_candidates = range(2, windows_size)
+        else:
+            w_candidates = np.floor(np.linspace(2, windows_size, 5)).astype(int)
+
+        for i in w_candidates:
             
             lrec = self.LREC(rm, i)
             blrec = self.binarizeLREC(lrec)
@@ -77,8 +83,10 @@ class LRRDSModel():
         lrec = self.LREC(rm, w)
         blrec = self.binarizeLREC(lrec)
         ss = self.getSegmentStarts(blrec)
+        if len(ss) == 1:
+            return self.constructDiscordDataframe(dataset.index, ss, [False], compresion_factor)
         q = self.constructLengthMeanMatrix(lrec, ss)
-        _, _, OD = self.RM(q)
+        _, _, OD = self.RM(q, threshold)
         gdd = self.globalDiscordDegree(OD)
         ds = self.detectDiscordSegments(gdd)
         return self.constructDiscordDataframe(dataset.index, ss, ds, compresion_factor)
@@ -114,7 +122,7 @@ class LRRDSModel():
         return math.sqrt(1-sum(x1*x2)/(sum(x1)*sum(x2)))
 
 
-    def localRM(self, data, window_size):
+    def localRM(self, data, window_size, threshold):
         maxEuclidean = 0
         maxBhattacharyya = 0
         DE = np.zeros((data.shape[0], data.shape[0]))
@@ -151,13 +159,13 @@ class LRRDSModel():
                 DE[x,y] = DE[y,x] = de
                 DB[x,y] = DB[y,x] = db
 
-        f = lambda i, th: i >= 0.25 * th
+        f = lambda i, th: i >= threshold * th
         DE = f(DE, maxEuclidean)
         DB = f(DB, maxBhattacharyya)
 
         return DE, DB, np.logical_and(DE, DB)
 
-    def RM(self, data):
+    def RM(self, data, threshold):
         maxEuclidean = 0
         maxBhattacharyya = 0
         DE = np.zeros((data.shape[0], data.shape[0]))
@@ -172,7 +180,7 @@ class LRRDSModel():
                 DB[i,j] = self.bhattacharyyaDistance(x1,x2)
                 if DB[i,j] > maxBhattacharyya:
                     maxBhattacharyya = DB[i,j]
-        f = lambda x, y: x >= 0.25 * y
+        f = lambda x, y: x >= threshold * y
         DE = f(DE, maxEuclidean)
         DB = f(DB, maxBhattacharyya)
 

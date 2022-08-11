@@ -20,7 +20,7 @@ class SlidingWindowARIMAConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = Threshold(alm_threshold=2.4)
 
     def __init__(self, **kwargs):
 
@@ -36,7 +36,7 @@ class SlidingWindowARIMA(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:
@@ -60,7 +60,7 @@ class SlidingWindowARIMA(DetectorBase):
 
 class SlidingWindowARIMAModel():
 
-    def process(self, dataset: pd.DataFrame, window_size = 500, step = 50):
+    def process(self, dataset: pd.DataFrame, window_size = 100, step = 50):
         anomalyScores = np.zeros((len(dataset),1))
 
         for i in range(0, len(dataset) - window_size, step):
@@ -98,7 +98,7 @@ class SlidingWindowARIMAModel():
             dswd = differentiate(dswd)
         return D
 
-    def obtainPandQ(self, dataset: pd.DataFrame, D, Pmax = 2, Qmax = 2):
+    def obtainPandQ(self, dataset: pd.DataFrame, D, Pmax = 3, Qmax = 3):
         dataset = TimeSeries.from_pd(dataset)
         minAICvalue = None
         minP = None
@@ -116,7 +116,7 @@ class SlidingWindowARIMAModel():
                     minP = p
                     minQ = q
                     minModel = model
-        return minP, minQ, model
+        return minP, minQ, minModel
 
     def AIC(self, error, K):
         return len(error) * math.log(sum(np.square(error))/len(error)) + K

@@ -16,9 +16,9 @@ class AAMPConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = Threshold(alm_threshold=5)
 
-    def __init__(self, segment_length = 290, minimal_compare_distance = 150, **kwargs):
+    def __init__(self, segment_length = 290, minimal_compare_distance = 290, **kwargs):
         
         self.segment_length = segment_length
         self.minimal_compare_distance = minimal_compare_distance
@@ -34,7 +34,7 @@ class AAMP(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:

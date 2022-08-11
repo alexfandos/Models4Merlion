@@ -16,9 +16,9 @@ class PAPRRWConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = Threshold(alm_threshold=1.2)
 
-    def __init__(self, segment_length = 290, sub_value_space_number = 6, wd=0.3, wc=0.4, wr = 0.3, damping_factor = 0.1, steps = 100, **kwargs):
+    def __init__(self, segment_length = 430, sub_value_space_number = 6, wd=0.3, wc=0.4, wr = 0.3, damping_factor = 0.1, steps = 200, **kwargs):
         
         self.damping_factor = damping_factor
         self.steps = steps
@@ -41,7 +41,7 @@ class PAPRRW(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:

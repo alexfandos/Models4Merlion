@@ -19,9 +19,9 @@ class DeepAnTConfig(DetectorConfig):
     # and you will apply a thresholding rule to suppress all anomaly scores
     # with magnitude smaller than the threshold. Here, we only wish to report
     # 3-sigma events.
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = Threshold(alm_threshold=4.1)
 
-    def __init__(self, windows_size = 20, **kwargs):
+    def __init__(self, windows_size = 100, epochs = 100, **kwargs):
         """
         Provide model-specific config parameters here, with kwargs to capture any
         general-purpose arguments used by the base class. For DetectorConfig,
@@ -32,6 +32,7 @@ class DeepAnTConfig(DetectorConfig):
         """
         super().__init__(**kwargs)
         self.windows_size = windows_size
+        self.epochs = epochs
 
 
 class DeepAnT(DetectorBase):
@@ -44,7 +45,7 @@ class DeepAnT(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:
@@ -83,7 +84,7 @@ class DeepAnT(DetectorBase):
         train_loader = torch.utils.data.DataLoader(dataset=train_data_tensor, batch_size=32, shuffle=False)
         train_step = self.__make_train_step(self.model, criterion, optimizer)
 
-        for epoch in range(20):
+        for epoch in range(self.config.epochs):
             loss_sum = 0.0
             ctr = 0
             for x_batch, y_batch in train_loader:
@@ -106,7 +107,27 @@ class DeepAnT(DetectorBase):
         
         X, Y = self.data_pre_processing(time_series)
 
-        processed_anomalies = (self.model(torch.tensor(X.astype(np.float32))).detach().numpy()-Y)
+
+
+        infer_data_tensor = torch.utils.data.TensorDataset(torch.tensor(X.astype(np.float32)), torch.tensor(Y.astype(np.float32)))
+
+        infer_loader = torch.utils.data.DataLoader(dataset=infer_data_tensor, batch_size=512, shuffle=False)
+ 
+
+
+        for x_batch, y_batch in infer_loader:
+            prediction = self.model(x_batch).detach().numpy()
+            anomalies_prediction = prediction - y_batch.detach().numpy()
+            if 'processed_anomalies' not in locals():
+                processed_anomalies = anomalies_prediction
+            else:
+                processed_anomalies = np.concatenate((processed_anomalies, anomalies_prediction))
+
+        #     loss_train = train_step(x_batch, y_batch)
+        #     loss_sum += loss_train
+        #     ctr += 1
+
+        # processed_anomalies = (self.model(torch.tensor(X.astype(np.float32))).detach().numpy()-Y)
 
         anomalies = np.concatenate((np.zeros((self.config.windows_size, self.dim)), processed_anomalies))
 

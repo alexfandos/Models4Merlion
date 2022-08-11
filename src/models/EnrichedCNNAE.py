@@ -21,11 +21,13 @@ class EnrichedCNNAEConfig(DetectorConfig):
  
     _default_transform = TemporalResample(granularity=None)
 
-    _default_threshold = Threshold(alm_threshold=3.0)
+    _default_threshold = Threshold(alm_threshold=4.5)
 
-    def __init__(self, window_size_b = 4, window_size_f = 2, **kwargs):
+    def __init__(self, window_size_b = 290, window_size_f = 2, n_epochs = 1000, learning_rate = 0.001,  **kwargs):
         self.b = window_size_b
         self.f = window_size_f
+        self.n_epochs = n_epochs
+        self.learning_rate = learning_rate
         super().__init__(**kwargs)
 
 class EnrichedCNNAE(DetectorBase):
@@ -38,21 +40,21 @@ class EnrichedCNNAE(DetectorBase):
 
     @property
     def require_even_sampling(self) -> bool:
-        return True
+        return False
 
     @property
     def require_univariate(self) -> bool:
         return True
 
     def __init__(self, config: EnrichedCNNAEConfig):
-        self.model = EnrichedCNNAEModel(b = config.b, f = config.f)
+        self.model = EnrichedCNNAEModel(b = config.b, f = config.f, n_epochs=config.n_epochs)
         super().__init__(config)
 
 
 
     def _train(self, train_data: pd.DataFrame, train_config=None) -> pd.DataFrame:
         self.model.setK(len(train_data.columns))
-        return self.model.train(train_data)
+        return self.model.train(train_data, self.config.learning_rate)
 
         
 
@@ -61,7 +63,7 @@ class EnrichedCNNAE(DetectorBase):
 
 
 class EnrichedCNNAEModel():
-    def __init__(self, b, f):
+    def __init__(self, b, f, n_epochs):
         if b % 2 != 0:
             b = b + 1
         self.b = b
@@ -69,8 +71,9 @@ class EnrichedCNNAEModel():
             f = f + 1
         self.f = f
         self.model = AutoEncoder()
+        self.n_epochs = n_epochs
 
-    def train(self, time_series: pd.DataFrame):
+    def train(self, time_series: pd.DataFrame, learning_rate = 0.001):
         enrichedData = self.enrichData(time_series)
 
         enrichedData = self.expandDimensionIfToSmall(enrichedData)
@@ -79,7 +82,7 @@ class EnrichedCNNAEModel():
 
         train_loader = torch.utils.data.DataLoader(dataset=train_data_tensor, batch_size=32, shuffle=False)
 
-        self.trainModel(train_loader)
+        self.trainModel(train_loader, learning_rate)
 
         error = self.predict(enrichedData)
 
@@ -174,17 +177,17 @@ class EnrichedCNNAEModel():
 
         return H
 
-    def trainModel(self, train_loader):
+    def trainModel(self, train_loader, learning_rate = 0.001):
         
         criterion = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         if torch.cuda.is_available():
             device = 'cuda:0'
         else:
             device = 'cpu'
         self.model.to(device)
 
-        n_epochs = 10
+        n_epochs = self.n_epochs
         for epoch in range(1, n_epochs+1):
             train_loss = 0.0
             ctr = 0
